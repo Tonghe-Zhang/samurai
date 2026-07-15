@@ -166,7 +166,7 @@ visualization/*
 demo/
 
 # xdof_tracker outputs & assets
-xdof_tracker/out_*/
-xdof_tracker/*.mp4
-xdof_tracker/*.png
-xdof_tracker/__pycache__/
+yam_tracker/out_*/
+yam_tracker/*.mp4
+yam_tracker/*.png
+yam_tracker/__pycache__/
