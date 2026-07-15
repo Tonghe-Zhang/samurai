@@ -5,9 +5,10 @@ in each wrist camera over that arm's possession phase, then tile the two views
 side-by-side. Seeds are auto-detected (SAM3 "nearest the gripper"), so the
 caller only supplies a per-arm seed frame — no hand-drawn boxes.
 
-  giver wrist:    seed at the handover frame, reverse-track to the pickup.
-  receiver wrist: seed while it clearly holds the object, track both directions
-                  (reverse to the handover, forward to placement).
+  giver wrist:    seed at the handover frame, reverse-track back to the pickup.
+  receiver wrist: seed at the last in-hand frame (placement), reverse-track back
+                  toward the handover.
+Both sides run backward from a frame where the arm clearly holds the object.
 
 Reuses tracker (SAM3 seed + SAMURAI), relabel_api (path window + jitter gate),
 dataset_meta (camera blobs), video_io (H.264 + overlay). No hardcoded paths.
@@ -37,7 +38,7 @@ GREEN = (0, 255, 0)
 DEMOS = [
     {"episode": "xdof/019d2c4e-6b30-790b-b841-1e8445c46ce9", "prompt": "wooden block",
      "giver": ("left_wrist_0_rgb", 737), "receiver": ("right_wrist_0_rgb", 915)},
-    {"episode": "xdof/019c0548-d850-7623-b17e-c86133937c64", "prompt": "headphones",
+    {"episode": "xdof/019c0548-d850-7623-b17e-c86133937c64", "prompt": "white headphones",
      "giver": ("left_wrist_0_rgb", 478), "receiver": ("right_wrist_0_rgb", 853)},
 ]
 
@@ -92,8 +93,11 @@ def run(demo: dict, port: int = trk._SERVE_PORT) -> str:
     print(f"episode {name}: {demo['prompt']} handover")
     gcam, gseed = demo["giver"]
     rcam, rseed = demo["receiver"]
+    # Both sides track BACKWARD from a frame where the object is clearly held:
+    # giver seeds at the handover -> back to pickup; receiver seeds at the last
+    # in-hand frame (placement) -> back toward the handover.
     gf, fps, gmask = _track_phase(demo["episode"], gcam, gseed, demo["prompt"], (True,), port)
-    rf, _, rmask = _track_phase(demo["episode"], rcam, rseed, demo["prompt"], (True, False), port)
+    rf, _, rmask = _track_phase(demo["episode"], rcam, rseed, demo["prompt"], (True,), port)
     go = _overlay(gf, gmask, "giver")
     ro = _overlay(rf, rmask, "receiver")
     n = min(len(go), len(ro))
