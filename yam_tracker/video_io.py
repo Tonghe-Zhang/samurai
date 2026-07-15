@@ -54,6 +54,12 @@ def _mask_bbox(mask: np.ndarray) -> list[int] | None:
     return [x0, y0, x1 - x0, y1 - y0]
 
 
+def mask_centroid(mask: np.ndarray):
+    """Return the (x, y) centroid of the True pixels, or None if empty."""
+    ys, xs = np.where(mask)
+    return None if xs.size == 0 else np.array([xs.mean(), ys.mean()])
+
+
 def _paint(img: np.ndarray, mask: np.ndarray, color, alpha: float = 0.45):
     """Blend `color` into `img` wherever `mask` is True (in place-ish)."""
     if mask is None or not mask.any():

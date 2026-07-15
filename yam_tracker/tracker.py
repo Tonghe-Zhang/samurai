@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import base64
 import os
-import subprocess
 import sys
 import threading
 from functools import partial
@@ -96,16 +95,21 @@ class Tracker:
             video_path, offload_video_to_cpu=True, offload_state_to_cpu=True)
         self.num_frames = self.state["num_frames"]
 
-    def track(self, seed_frame: int, seed_mask: np.ndarray, obj_id: int = 0
-              ) -> dict[int, np.ndarray]:
-        """Seed with a tight mask at `seed_frame`, propagate reverse then forward."""
+    def track(self, seed_frame: int, seed_mask: np.ndarray, obj_id: int = 0,
+              directions: tuple = (True, False)) -> dict[int, np.ndarray]:
+        """Seed with a tight mask at `seed_frame` and propagate.
+
+        `directions` selects the passes: (True, False) = reverse then forward
+        (whole lifetime), (True,) = backward only (origin search), (False,) =
+        forward only (shell game).
+        """
         self.predictor.reset_state(self.state)
         masks: dict[int, np.ndarray] = {}
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16):
             self.predictor.add_new_mask(self.state, frame_idx=seed_frame,
                                         obj_id=obj_id,
                                         mask=torch.as_tensor(seed_mask, dtype=torch.bool))
-            for reverse in (True, False):
+            for reverse in directions:
                 for f_idx, _ids, logits in self.predictor.propagate_in_video(
                         self.state, start_frame_idx=seed_frame, reverse=reverse):
                     masks[f_idx] = (logits[0, 0] > 0.0).cpu().numpy()
