@@ -71,11 +71,18 @@ def seed_from_sam3(image_url: str, h: int, w: int, prompt: str,
     Left-to-right ordering gives each object a stable, human-readable number
     that matches across cameras and the merged video.
     """
-    r = requests.post(SAM3_URL, json={"image_url": image_url, "text": prompt,
-                                      "score_threshold": thr}, timeout=60)
-    r.raise_for_status()
+    # The SAM3 adapter occasionally returns 0 detections transiently; retry a
+    # few times before giving up so a single flaky call doesn't drop a seed.
+    dets = []
+    for _ in range(4):
+        r = requests.post(SAM3_URL, json={"image_url": image_url, "text": prompt,
+                                          "score_threshold": thr}, timeout=60)
+        r.raise_for_status()
+        dets = r.json()["detections"]
+        if dets:
+            break
     seeds = []
-    for det in r.json()["detections"]:
+    for det in dets:
         mask = _det_to_mask(det, h, w)
         if int(mask.sum()) < min_area:
             continue

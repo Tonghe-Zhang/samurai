@@ -75,7 +75,9 @@ def path_continuous_window(masks, seed_frame, jump=70, exit_gap=120) -> dict[int
         if m is None or not m.any() or int(m.sum()) < 20:
             continue  # bridge short absence
         c = mask_centroid(m)
-        if np.linalg.norm(c - last) > jump:
+        if c is None:
+            continue
+        if last is not None and np.linalg.norm(c - last) > jump:
             continue  # off-path jump -> discard this frame, keep looking
         kept[f] = m
         last, last_f = c, f
