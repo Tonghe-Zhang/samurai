@@ -82,6 +82,46 @@ def path_continuous_window(masks, seed_frame, jump=70, exit_gap=120) -> dict[int
     return kept
 
 
+def reliable_run(kept, seed_frame, k=4.0, win=15, frac=0.5) -> dict[int, np.ndarray]:
+    """Trim the jittery tail: keep the contiguous run around the seed that stays
+    smooth, using a threshold calibrated from THIS track (no fixed pixel value).
+
+    Jitter = frame-to-frame centroid acceleration. Its robust centre (median +
+    MAD over the window) sets a per-track spike level `median + k*MAD`. We then
+    walk outward from the seed and stop only where jitter is *sustained* — a
+    local window of `win` frames is >`frac` spikes — so an isolated blip during
+    a smooth carry does not cut the run. General across episodes: the cutoff
+    scales with each track's own motion statistics, no fixed pixel value.
+    """
+    order = sorted(kept)
+    if len(order) < 2 * win:
+        return kept
+    cen = {f: mask_centroid(kept[f]) for f in order}
+    speed = [0.0]
+    for a, b in zip(order, order[1:]):
+        speed.append(np.linalg.norm(cen[b] - cen[a]) / max(1, b - a))
+    accel = np.abs(np.diff(speed, prepend=speed[0]))
+    med = float(np.median(accel))
+    mad = float(np.median(np.abs(accel - med))) or 1.0
+    spike = accel > (med + k * 1.4826 * mad)
+    si = min(range(len(order)), key=lambda i: abs(order[i] - seed_frame))
+
+    def sustained(i):  # jitter is bad only if a local window is mostly spikes
+        lo, hi = max(0, i - win), min(len(order), i + win + 1)
+        return spike[lo:hi].mean() > frac
+
+    good = {order[si]}
+    for j in range(si - 1, -1, -1):
+        if sustained(j):
+            break
+        good.add(order[j])
+    for j in range(si + 1, len(order)):
+        if sustained(j):
+            break
+        good.add(order[j])
+    return {f: kept[f] for f in good}
+
+
 def find_origin(video: str, seed_frame: int, seed_box, arm: str,
                 episode: str, label: str = "obj", prompt: str = "block",
                 out_mp4: str | None = None, port: int = 8791) -> dict:
