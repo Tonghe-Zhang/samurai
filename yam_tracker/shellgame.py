@@ -22,7 +22,7 @@ import sys
 import cv2
 import numpy as np
 
-sys.path.insert(0, "/shared/tmp/track_hangers")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tracker as trk  # noqa: E402
 import video_io  # noqa: E402
 
