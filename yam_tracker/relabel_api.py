@@ -86,20 +86,23 @@ def reliable_run(kept, seed_frame, k=4.0, win=15, frac=0.5) -> dict[int, np.ndar
     """Trim the jittery tail: keep the contiguous run around the seed that stays
     smooth, using a threshold calibrated from THIS track (no fixed pixel value).
 
-    Jitter = frame-to-frame centroid acceleration. Its robust centre (median +
-    MAD over the window) sets a per-track spike level `median + k*MAD`. We then
-    walk outward from the seed and stop only where jitter is *sustained* — a
-    local window of `win` frames is >`frac` spikes — so an isolated blip during
-    a smooth carry does not cut the run. General across episodes: the cutoff
-    scales with each track's own motion statistics, no fixed pixel value.
+    Jitter = frame-to-frame centroid acceleration, measured in OBJECT-SIZE units
+    (centroid step / sqrt(mask area)) so a large object's normal motion is not
+    mistaken for jitter — scale-invariant across small blocks and big headphones.
+    Its robust centre (median + MAD over the window) sets a per-track spike level
+    `median + k*MAD`; we walk outward from the seed and stop only where jitter is
+    *sustained* — a local window of `win` frames is >`frac` spikes — so an
+    isolated blip during a smooth carry does not cut the run. No fixed pixel value.
     """
     order = sorted(kept)
     if len(order) < 2 * win:
         return kept
     cen = {f: mask_centroid(kept[f]) for f in order}
+    scale = {f: max(8.0, np.sqrt(int(kept[f].sum()))) for f in order}  # ~object width
     speed = [0.0]
     for a, b in zip(order, order[1:]):
-        speed.append(np.linalg.norm(cen[b] - cen[a]) / max(1, b - a))
+        step = np.linalg.norm(cen[b] - cen[a]) / max(1, b - a)
+        speed.append(step / scale[b])  # normalise by object size
     accel = np.abs(np.diff(speed, prepend=speed[0]))
     med = float(np.median(accel))
     mad = float(np.median(np.abs(accel - med))) or 1.0
