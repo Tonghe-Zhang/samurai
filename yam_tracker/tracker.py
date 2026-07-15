@@ -29,15 +29,20 @@ import numpy as np
 import requests
 import torch
 
-sys.path.append("/shared/samurai/sam2")
+# Environment-configurable locations (override via env vars; defaults suit the
+# dev cluster). SAM2_REPO holds the SAMURAI checkout, TRACKER_CKPT_DIR the SAM2.1
+# checkpoints, SAM3_URL the segmentation adapter.
+SAM2_REPO = os.environ.get("SAM2_REPO", "/shared/samurai/sam2")
+CKPT_DIR = os.environ.get("TRACKER_CKPT_DIR", "/shared/ckpts/tracker")
+sys.path.append(SAM2_REPO)
 from sam2.build_sam import build_sam2_video_predictor  # noqa: E402
 
 import video_io  # noqa: E402
 
 _CFG = "configs/samurai/sam2.1_hiera_l.yaml"
-_CKPT = "/shared/ckpts/tracker/sam2.1_hiera_large.pt"
-SAM3_URL = "http://localhost:8727/segment"
-_SERVE_PORT = 8791  # static server so the SAM3 adapter can GET our seed frames
+_CKPT = os.path.join(CKPT_DIR, "sam2.1_hiera_large.pt")
+SAM3_URL = os.environ.get("SAM3_URL", "http://localhost:8727/segment")
+_SERVE_PORT = int(os.environ.get("TRACKER_SERVE_PORT", "8791"))
 
 
 # ----------------------------------------------------------------------------- SAM3 seeding
@@ -176,7 +181,7 @@ def main():
     ap.add_argument("--prompt", default="fruit")
     ap.add_argument("--seed-frame", default="last")
     ap.add_argument("--thr", type=float, default=0.85)
-    ap.add_argument("--out-dir", default="/shared/tmp/track_hangers/out")
+    ap.add_argument("--out-dir", default="out")
     args = ap.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
     _static_server(args.out_dir)

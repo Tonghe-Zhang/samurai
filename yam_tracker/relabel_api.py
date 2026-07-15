@@ -30,6 +30,7 @@ import video_io  # noqa: E402
 from video_io import mask_centroid  # noqa: E402
 
 GREEN = (0, 255, 0)
+OUT_DIR = os.environ.get("RELABEL_OUT", "out_relabel")  # served root + mp4 output
 
 
 def _seed_mask(frame_bgr: np.ndarray, box_xyxy, prompt: str, port: int) -> np.ndarray:
@@ -39,7 +40,7 @@ def _seed_mask(frame_bgr: np.ndarray, box_xyxy, prompt: str, port: int) -> np.nd
     requested region (so we seed the specific instance the user pointed at).
     """
     h, w = frame_bgr.shape[:2]
-    cv2.imwrite("/shared/tmp/track_hangers/_relabel_seed.png", frame_bgr)
+    cv2.imwrite(os.path.join(OUT_DIR, "_relabel_seed.png"), frame_bgr)
     dets = trk.seed_from_sam3(f"http://localhost:{port}/_relabel_seed.png",
                               h, w, prompt, thr=0.2)
     tx0, ty0, tx1, ty1 = box_xyxy
@@ -90,6 +91,7 @@ def find_origin(video: str, seed_frame: int, seed_box, arm: str,
     reliable window; the rest of the episode plays clean. Returns the origin =
     earliest reliable frame that is also outside a grasp of `arm`.
     """
+    os.makedirs(OUT_DIR, exist_ok=True)
     frames, fps = video_io.read_frames(video)
     mask0 = _seed_mask(frames[seed_frame], seed_box, prompt, port)
     tr = trk.Tracker(video)
@@ -98,7 +100,7 @@ def find_origin(video: str, seed_frame: int, seed_box, arm: str,
 
     busy = meta.contact_frames(episode, arm)
     origin = next((f for f in sorted(kept) if f not in busy), min(kept))
-    out_mp4 = out_mp4 or f"/shared/tmp/track_hangers/out_relabel/{label}_origin.mp4"
+    out_mp4 = out_mp4 or os.path.join(OUT_DIR, f"{label}_origin.mp4")
     video_io.write_overlay(frames, kept, out_mp4, fps, label=label)
     return {"origin_frame": origin, "reliable_window": [min(kept), max(kept)],
             "origin_bbox_xywh": video_io._mask_bbox(kept[origin]),
@@ -106,10 +108,11 @@ def find_origin(video: str, seed_frame: int, seed_box, arm: str,
 
 
 if __name__ == "__main__":
-    trk._static_server("/shared/tmp/track_hangers")
-    RW = ("/shared/datasets/vla/real/xdof_14k_emb_aligned_independent_trimtail/"
-          "blobs/68/68a8af8e709c1bc043ca16efce101c978f1079a660d3d0c934ce43e198c6fbc8.mp4")
-    res = find_origin(RW, seed_frame=963, seed_box=[240, 181, 284, 239],
-                      arm="right", episode="xdof/019d2c4e-6b30-790b-b841-1e8445c46ce9",
-                      label="O", prompt="block")
+    # Demo: find the "O" block's visible, no-contact origin in one episode.
+    os.makedirs(OUT_DIR, exist_ok=True)
+    trk._static_server(OUT_DIR)
+    ep = "xdof/019d2c4e-6b30-790b-b841-1e8445c46ce9"
+    res = find_origin(meta.camera_video(ep, "right_wrist_0_rgb"),
+                      seed_frame=963, seed_box=[240, 181, 284, 239],
+                      arm="right", episode=ep, label="O", prompt="block")
     print(json.dumps(res, indent=2))

@@ -9,11 +9,16 @@ import from here instead of re-parsing the parquet.
 from __future__ import annotations
 
 import json
+import os
 
 import pyarrow.dataset as ds
 
-DATASET = "/shared/datasets/vla/real/xdof_14k_emb_aligned_independent_trimtail/split=train"
-BLOBS = "/shared/datasets/vla/real/xdof_14k_emb_aligned_independent_trimtail/blobs/"
+# Dataset root (override via XDOF_DATASET_ROOT). Contains split=train/ and blobs/.
+ROOT = os.environ.get(
+    "XDOF_DATASET_ROOT",
+    "/shared/datasets/vla/real/xdof_14k_emb_aligned_independent_trimtail")
+DATASET = os.path.join(ROOT, "split=train")
+BLOBS = os.path.join(ROOT, "blobs") + "/"
 CAMERAS = ("base_0_rgb", "base_1_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb")
 
 

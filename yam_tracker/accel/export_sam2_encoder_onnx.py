@@ -26,8 +26,8 @@ from pathlib import Path
 import torch
 from torch import nn
 
-sys.path.append("/shared/samurai/sam2")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import tracker  # noqa: E402,F401  (puts SAM2_REPO on sys.path)
 from sam2.build_sam import build_sam2_video_predictor  # noqa: E402
 
 import tracker_accel as tra  # noqa: E402

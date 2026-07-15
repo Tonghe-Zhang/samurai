@@ -26,7 +26,8 @@ import tracker as trk  # noqa: E402
 import video_io  # noqa: E402
 from video_io import mask_centroid as centroid  # noqa: E402
 
-EPISODE = "xdof/019cc383-4530-7285-a592-560b5c000c37"
+EPISODE = os.environ.get("MO_EPISODE", "xdof/019cc383-4530-7285-a592-560b5c000c37")
+OUT_DIR = os.environ.get("MO_OUT", "out_mango")  # holds served seed PNGs + mp4s
 # Per-camera config keyed by dataset camera name. base_0 is a fixed top camera
 # and sees both arms; each wrist rides one arm and only that arm's grasps apply.
 # "attrib" picks how the manipulated object is chosen per frame:
@@ -130,8 +131,7 @@ def run_camera(name: str, cfg: dict, intervals):
     frames, fps = video_io.read_frames(video)
     h, w = frames[0].shape[:2]
     seed_idx = len(frames) - 1 if cfg["seed"] == "last" else int(cfg["seed"])
-    seed_png = f"/shared/tmp/track_hangers/_mo_{name}.png"
-    cv2.imwrite(seed_png, frames[seed_idx])
+    cv2.imwrite(os.path.join(OUT_DIR, f"_mo_{name}.png"), frames[seed_idx])
     seeds = trk.seed_from_sam3(
         f"http://localhost:{trk._SERVE_PORT}/_mo_{name}.png", h, w, PROMPT, THR)
     print(f"[{name}] {len(seeds)} objects seeded at frame {seed_idx}")
@@ -147,14 +147,15 @@ def run_camera(name: str, cfg: dict, intervals):
                else active_by_motion(per_obj, s, e))
         print(f"  [{name}] {arm:5s} [{s:4d}-{e:4d}] -> "
               f"{'#' + str(oid + 1) if oid is not None else '??'}")
-    out_path = f"/shared/tmp/track_hangers/out_mango/{name}_manipulation_order.mp4"
+    out_path = os.path.join(OUT_DIR, f"{name}_manipulation_order.mp4")
     render(frames, per_obj, fa, fps, out_path)
     print(f"[{name}] wrote {out_path}")
 
 
 def main():
     which = sys.argv[1:] or list(CAMERAS)
-    trk._static_server("/shared/tmp/track_hangers")
+    os.makedirs(OUT_DIR, exist_ok=True)
+    trk._static_server(OUT_DIR)
     intervals = meta.grasp_intervals(EPISODE)
     print(f"{len(intervals)} grasp intervals; cameras: {which}")
     for name in which:

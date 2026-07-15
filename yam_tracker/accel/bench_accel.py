@@ -20,7 +20,7 @@ import numpy as np
 import tracker as trk
 import tracker_accel as tra
 
-OUT_DIR = "/shared/tmp/track_hangers/out_shellgame"
+OUT_DIR = os.environ.get("SHELLGAME_OUT", "out_shellgame")  # tile mp4s live here
 TILE_H, TILE_W = 360, 640
 
 

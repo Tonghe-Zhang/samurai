@@ -26,8 +26,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tracker as trk  # noqa: E402
 import video_io  # noqa: E402
 
-VIDEO = "/shared/shell-game-data/yam_shellgame/tiled_9.mp4"
-OUT_DIR = "/shared/tmp/track_hangers/out_shellgame"
+# Input video: first CLI arg, else SHELLGAME_VIDEO env, else the cluster default.
+VIDEO = (sys.argv[1] if len(sys.argv) > 1 else
+         os.environ.get("SHELLGAME_VIDEO",
+                        "/shared/shell-game-data/yam_shellgame/tiled_9.mp4"))
+OUT_DIR = os.environ.get("SHELLGAME_OUT", "out_shellgame")
 GRID_OUT = os.path.join(OUT_DIR, "shellgame_tracked_grid.mp4")
 TILE_W, TILE_H = 640, 360
 GUTTER = 8  # black border drawn between tiles in the output grid

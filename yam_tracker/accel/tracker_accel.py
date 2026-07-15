@@ -25,22 +25,16 @@ import sys
 
 import torch
 
-sys.path.append("/shared/samurai/sam2")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import tracker as trk  # noqa: E402  (also puts SAM2_REPO on sys.path)
 from sam2.build_sam import build_sam2_video_predictor  # noqa: E402
 
-import tracker as trk  # noqa: E402
-
-# Backbone checkpoints + samurai configs, keyed by backbone size.
+# Backbone samurai configs + checkpoint filenames, resolved against trk.CKPT_DIR.
 _BACKBONES = {
-    "large": ("configs/samurai/sam2.1_hiera_l.yaml",
-              "/shared/ckpts/tracker/sam2.1_hiera_large.pt"),
-    "base_plus": ("configs/samurai/sam2.1_hiera_b+.yaml",
-                  "/shared/ckpts/tracker/sam2.1_hiera_base_plus.pt"),
-    "small": ("configs/samurai/sam2.1_hiera_s.yaml",
-              "/shared/ckpts/tracker/sam2.1_hiera_small.pt"),
-    "tiny": ("configs/samurai/sam2.1_hiera_t.yaml",
-             "/shared/ckpts/tracker/sam2.1_hiera_tiny.pt"),
+    "large": ("configs/samurai/sam2.1_hiera_l.yaml", "sam2.1_hiera_large.pt"),
+    "base_plus": ("configs/samurai/sam2.1_hiera_b+.yaml", "sam2.1_hiera_base_plus.pt"),
+    "small": ("configs/samurai/sam2.1_hiera_s.yaml", "sam2.1_hiera_small.pt"),
+    "tiny": ("configs/samurai/sam2.1_hiera_t.yaml", "sam2.1_hiera_tiny.pt"),
 }
 
 
@@ -54,7 +48,8 @@ class AccelTracker(trk.Tracker):
     def __init__(self, video_path: str, device: str = "cuda:0",
                  image_size: int = 1024, backbone: str = "large",
                  trt_encoder_plan: str | None = None):
-        cfg, ckpt = _BACKBONES[backbone]
+        cfg, ckpt_name = _BACKBONES[backbone]
+        ckpt = os.path.join(trk.CKPT_DIR, ckpt_name)
         overrides = [f"++model.image_size={image_size}"]
         self.predictor = build_sam2_video_predictor(
             cfg, ckpt, device=device, hydra_overrides_extra=overrides)
